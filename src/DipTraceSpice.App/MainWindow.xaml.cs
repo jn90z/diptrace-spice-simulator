@@ -11,6 +11,7 @@ namespace DipTraceSpice.App;
 public partial class MainWindow : Window
 {
     private PcbGeometry? _pcb;
+    private SchematicCircuit? _schematic;
     private double _zoom = 1;
     private SpiceDiodeModel? _ledModel;
     public MainWindow()
@@ -81,8 +82,11 @@ public partial class MainWindow : Window
             else
             {
                 _pcb = null;
+                _schematic = SchematicCircuit.Load(path);
                 BoardCanvas.Children.Clear();
-                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace schematic {version} loaded. Schematic rendering is not implemented.";
+                var ledCount = _schematic.Parts.Count(p => p.Name.Equals("LED", StringComparison.OrdinalIgnoreCase));
+                var diagnosticText = _schematic.Diagnostics.Count == 0 ? "No topology warnings." : string.Join(" | ", _schematic.Diagnostics.Take(3));
+                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace schematic {version} • {_schematic.Parts.Count} parts • {_schematic.Nets.Count} nets • {ledCount} LED(s). {diagnosticText} Source/sink assignment and SPICE netlist generation are not yet implemented.";
             }
         }
         catch (Exception ex) { Status.Text = $"Unable to load: {ex.Message}"; }
