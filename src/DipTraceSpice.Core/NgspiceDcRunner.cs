@@ -24,7 +24,14 @@ public static class NgspiceDcRunner
         Directory.CreateDirectory(temp);
         try
         {
-            File.Copy(model.SourcePath, Path.Combine(temp, "diode.lib"));
+            // Preserve the original vendor model. ngspice cannot parse free-text
+            // manufacturer metadata such as "+ mfg=Cree LED" as diode parameters.
+            // Remove only standalone mfg= continuation lines from the bench copy.
+            var modelLines = File.ReadAllLines(model.SourcePath);
+            var cleanedModel = modelLines.Where(line =>
+                !System.Text.RegularExpressions.Regex.IsMatch(line,
+                    @"^\s*\+\s*mfg\s*=", RegexOptions.IgnoreCase)).ToArray();
+            File.WriteAllLines(Path.Combine(temp, "diode.lib"), cleanedModel);
             var netlist = Path.Combine(temp, "bench.cir");
             File.WriteAllText(netlist, $"""
                 LED diode operating-point test (not the PCB netlist)
