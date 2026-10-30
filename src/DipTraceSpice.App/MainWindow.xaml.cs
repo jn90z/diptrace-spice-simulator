@@ -56,6 +56,42 @@ public partial class MainWindow : Window
         catch (Exception ex) { Status.Text = $"ngspice DC test failed: {ex.Message}"; }
         finally { button.IsEnabled = true; }
     }
+    private async void RunSchematicDc_Click(object sender, RoutedEventArgs e)
+    {
+        if (_schematic is null || _ledModel is null)
+        {
+            Status.Text = "Load a DipTrace schematic and an LED SPICE model first.";
+            return;
+        }
+        if (!double.TryParse(LedCurrentInput.Text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var milliamps) ||
+            !double.IsFinite(milliamps) || milliamps <= 0 || milliamps > 1000)
+        {
+            Status.Text = "Enter a valid LED current from 0 to 1000 mA.";
+            return;
+        }
+        var executable = NgspiceLocator.Find();
+        if (executable is null)
+        {
+            var dialog = new OpenFileDialog { Title = "Select portable ngspice executable",
+                Filter = "ngspice executables (ngspice*.exe)|ngspice*.exe|All executables (*.exe)|*.exe" };
+            if (dialog.ShowDialog() != true) return;
+            executable = dialog.FileName;
+        }
+        var button = (Button)sender;
+        button.IsEnabled = false;
+        Status.Text = $"Running schematic D1 constant-current DC simulation at {milliamps:G} mA...";
+        try
+        {
+            // DipTrace test-board pin mapping: D1 pin 1 anode, pin 0 cathode.
+            // A future component model-mapping dialog will make this explicit.
+            var result = await NgspiceDcRunner.RunSchematicLedAsync(
+                executable, _ledModel, _schematic, "D1", 1, 0, milliamps / 1000);
+            Status.Text = $"Schematic DC PASS • D1 • ILED={milliamps:F3} mA • VLED={result.LedVolts:F4} V • PLED={result.LedVolts * result.LedCurrentAmps * 1000:F2} mW. One-LED model only; no PCB parasitics.";
+        }
+        catch (Exception ex) { Status.Text = $"Schematic DC failed: {ex.Message}"; }
+        finally { button.IsEnabled = true; }
+    }
     private void OpenButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Filter = "DipTrace PCB Layout (*.dipxml)|*.dipxml|DipTrace Schematic (*.dchxml)|*.dchxml|All XML (*.xml;*.dipxml;*.dchxml)|*.xml;*.dipxml;*.dchxml|All files (*.*)|*.*" };
