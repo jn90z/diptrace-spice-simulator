@@ -28,7 +28,7 @@ public static class SchematicDcNetlist
             D1 led 0 {model.Name}
             .control
             op
-            print v(led) i(i1)
+            print v(led)
             quit
             .endc
             .end
