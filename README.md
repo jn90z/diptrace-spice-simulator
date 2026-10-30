@@ -4,7 +4,7 @@
 
 A portable, read-only PCB viewer and future electrical-analysis tool for DipTrace designs. The goal is to display **calculated** voltage drop and current density on the physical PCB, not decorative current animations.
 
-> **Project status — M2: early PCB geometry viewer.** Standalone startup and DipTrace XML recognition have been user-tested. The latest geometry renderer still requires build and visual verification. No electrical solver or SPICE integration is functional yet.
+> **Project status — M2: early PCB geometry viewer.** Standalone startup and DipTrace XML recognition have been user-tested. The initial outline/trace viewer has been user-tested; the new copper-fill/silkscreen upgrade requires CI and visual verification. No electrical solver or SPICE integration is functional yet.
 
 ## Current capabilities
 
@@ -13,9 +13,10 @@ A portable, read-only PCB viewer and future electrical-analysis tool for DipTrac
 | Portable Windows WPF application | Verified on user's PC |
 | Open `.dipxml` PCB and `.dchxml` schematic | Verified |
 | DipTrace 5.3.0.3 XML metadata | Verified |
-| Board outline, straight trace segments, component centers | Implemented; visual verification pending |
+| Board outline, straight trace segments, component centers | Verified visually on test board |
 | Layer toggles, fit-to-board and wheel zoom | Implemented; testing pending |
-| Pads, vias, pours, curved outlines, pan | Planned |
+| Copper fill scanline preview and top silkscreen text | Implemented; visual verification pending
+| Pads, vias, exact pour polygons/clearances, curved outlines, pan | Planned |
 | Native C++20 DLL scaffold | Builds independently; no simulation |
 | ngspice integration | Planned; not bundled or called |
 | Copper current-density solver | Planned |
