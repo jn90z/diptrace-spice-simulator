@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Source Type="DipTrace_Pcb_Plugin"
+        Name="PCB Current Flow Simulator"
+        ExeFile="DipTraceSpice.Plugin.exe"
+        Hint="Open a read-only snapshot in the DipTrace SPICE Simulator">
+  <Settings>
+    <ExpMode>All</ExpMode>
+    <ImpMode>None</ImpMode>
+    <Comp>None</Comp>
+    <Net>None</Net>
+    <Shape>None</Shape>
+    <Plane>None</Plane>
+    <Table>None</Table>
+    <Dim>None</Dim>
+    <Diff>None</Diff>
+    <Board>None</Board>
+    <Trace>None</Trace>
+    <Stamp>No</Stamp>
+  </Settings>
+</Source>
