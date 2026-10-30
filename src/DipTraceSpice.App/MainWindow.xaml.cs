@@ -39,13 +39,13 @@ public partial class MainWindow : Window
                 _pcb = PcbGeometry.Load(path);
                 _zoom = 1;
                 Render();
-                Status.Text = $"{Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers. Preview only: arcs, pads, vias, pours and simulation are not implemented.";
+                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers. Preview only: arcs, pads, vias, pours and simulation are not implemented.";
             }
             else
             {
                 _pcb = null;
                 BoardCanvas.Children.Clear();
-                Status.Text = $"{Path.GetFileName(path)} • DipTrace schematic {version} loaded. Schematic rendering is not implemented.";
+                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace schematic {version} loaded. Schematic rendering is not implemented.";
             }
         }
         catch (Exception ex) { Status.Text = $"Unable to load: {ex.Message}"; }
