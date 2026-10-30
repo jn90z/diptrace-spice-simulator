@@ -4,13 +4,15 @@
 
 An independent, open-source PCB analysis tool intended to display **calculated** current distribution, voltage drop, and power dissipation over actual DipTrace copper geometry.
 
-> **Current status: M1 integration prototype.** A read-only DipTrace PCB plugin launcher and XML-opening WPF viewer have been scaffolded. The viewer does **not** render PCB copper yet, and no electrical simulation has been implemented or validated.
+> **Current status: M2 initial geometry preview (unverified Windows build).** The WPF viewer now parses PCB outlines, straight trace segments and component center positions from `.dipxml`. Arc handling, pad/via geometry, copper pour fills and electrical simulation are not implemented.
 
 ## Confirmed DipTrace 5.3 XML samples\n\nTwo local sample files from DipTrace **5.3.0.3** were inspected (not committed): `TEST_BOARD_GER.dipxml` has root `Source Type="DipTrace-PCB"`, `Units="inch"`, with board outline, two copper layers, nine component entries, two nets, and copper pours; `TEST_BOARD_SCH.dchxml` has root `Source Type="DipTrace-Schematic"`, seven component entries, three nets, and a Simulator section. XML extension support and root metadata display are implemented; geometry import and simulation remain pending. Do not upload private board designs to the public repository.\n\n## What is available now
 
 - DipTrace PCB plugin manifest configured for full XML export and **no import/writeback**
 - C# plugin bridge that copies the host's temporary exchange file before launching the viewer
-- WPF window with XML file picker and secure XML root inspection
+- WPF window with `.dipxml`/`.dchxml` file picker and secure XML root inspection
+- Initial `.dipxml` geometry renderer: outline vertices, straight copper trace segments, component centers, top/bottom visibility and wheel zoom
+- Synthetic XML regression test for geometry parsing
 - C++20 native DLL stub exposing an ABI version function (not a solver)
 - Windows GitHub Actions CI: .NET build, unit tests, managed app artifact and native DLL artifact
 - Basic unit test and project documentation
@@ -39,8 +41,8 @@ A live overlay inside DipTrace's own PCB canvas is **not** assumed to be support
 ## Roadmap
 
 - **M0 complete:** license, documentation, repository structure, initial CI
-- **M1 in progress:** verify read-only plugin launch and exchange XML on real DipTrace 5.3
-- **M2:** parse and render PCB outlines, layers, pads, traces, vias and copper pours
+- **M1 partially verified:** standalone Windows app startup and DipTrace 5.3 XML imports confirmed by user; direct Tools-menu integration not yet tested
+- **M2 in progress:** initial straight-segment outline/trace renderer and component center markers; curved outlines, pads, vias, copper pours, pan and layer-specific geometry remain
 - **M3:** deterministic electrical network benchmarks and component models
 - **M4:** spatial copper-current solver, validated against analytical and measured paths
 - **M5:** accurate heatmaps, current arrows, units, warnings and reports
