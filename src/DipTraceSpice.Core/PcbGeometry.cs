@@ -7,7 +7,7 @@ public sealed record PcbPoint(double X, double Y);
 public sealed record PcbTrace(int Layer, double Width, string Net, IReadOnlyList<PcbPoint> Points);
 public sealed record PcbComponent(string Reference, double X, double Y);
 public sealed record PcbFillSegment(int Layer, PcbPoint Start, PcbPoint End, double Spacing);
-public sealed record PcbSilkText(string Text, PcbPoint Position, double Height);
+public sealed record PcbSilkText(string Text, PcbPoint Position, double Width, double Height, double Angle, string HorizontalAlignment, string VerticalAlignment);
 public sealed record PcbPad(string Reference, string Number, int NetId, PcbPoint Center, double Width, double Height, double Angle, string Shape, bool ThroughHole, double Drill);
 public sealed record PcbMountingHole(PcbPoint Center, double Diameter);
 public sealed record PcbGeometry(string Version, string Units, IReadOnlyList<PcbPoint> Outline, IReadOnlyList<PcbTrace> Traces, IReadOnlyList<PcbComponent> Components, IReadOnlyList<string> Layers)
@@ -59,7 +59,8 @@ public sealed record PcbGeometry(string Version, string Units, IReadOnlyList<Pcb
         var silk = board.Element("Shapes")?.Elements("Shape")
             .Where(e => (string?)e.Attribute("Type") == "Text" && (string?)e.Attribute("Layer") == "Top Silk")
             .Select(e => new PcbSilkText(string.Join("\n", e.Element("TextLines")?.Elements("TextLine").Select(t => t.Value) ?? []),
-                P(e.Element("Points")?.Element("Point") ?? e), N(e, "TextHeight")))
+                P(e.Element("Points")?.Element("Point") ?? e), N(e, "TextWidth"), N(e, "TextHeight"), N(e, "Angle"),
+                (string?)e.Attribute("HorzAlign") ?? "Left", (string?)e.Attribute("VertAlign") ?? "Top"))
             .Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToArray() ?? [];
         // Resolve physical pad geometry from the embedded DipTrace pattern library.
         var library = root.Element("Library")?.Element("Library");
