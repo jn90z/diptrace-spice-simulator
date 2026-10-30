@@ -1,0 +1,51 @@
+# .NET / Visual Studio
+**/bin/
+**/obj/
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+
+# Packaging and generated output
+artifacts/
+publish/
+dist/
+*.nupkg
+*.snupkg
+*.msi
+*.msix
+*.exe
+*.dll
+*.pdb
+
+# OS / temporary
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.swp
+*.log
+
+# Private / customer design data
+private/
+local-data/
+*.dch
+*.dip
+*.dcl
+*.eli
+*.ger
+*.gbr
+*.drl
+plugin_exchange.xml
+
+# Keep sanitized fixtures under examples/ explicitly
+!examples/**/*.xml
