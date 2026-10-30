@@ -30,6 +30,26 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) { Status.Text = $"Unable to import SPICE model: {ex.Message}"; }
     }
+    private async void RunDc_Click(object sender, RoutedEventArgs e)
+    {
+        if (_ledModel is null)
+        {
+            Status.Text = "Load a diode SPICE model first.";
+            return;
+        }
+        var dialog = new OpenFileDialog { Title = "Select ngspice.exe", Filter = "ngspice executable (ngspice.exe)|ngspice.exe|All executables (*.exe)|*.exe" };
+        if (dialog.ShowDialog() != true) return;
+        var button = (Button)sender;
+        button.IsEnabled = false;
+        Status.Text = "Running ngspice DC operating-point test (5 V, 36 Ω resistor)...";
+        try
+        {
+            var result = await NgspiceDcRunner.RunAsync(dialog.FileName, _ledModel);
+            Status.Text = $"ngspice DC PASS • {_ledModel.Name} • VLED={result.LedVolts:F4} V • ILED={result.LedCurrentAmps * 1000:F3} mA • 5 V supply, 36 Ω resistor. Bench test only: not a PCB simulation.";
+        }
+        catch (Exception ex) { Status.Text = $"ngspice DC test failed: {ex.Message}"; }
+        finally { button.IsEnabled = true; }
+    }
     private void OpenButton_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Filter = "DipTrace PCB Layout (*.dipxml)|*.dipxml|DipTrace Schematic (*.dchxml)|*.dchxml|All XML (*.xml;*.dipxml;*.dchxml)|*.xml;*.dipxml;*.dchxml|All files (*.*)|*.*" };
