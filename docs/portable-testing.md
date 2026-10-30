@@ -11,10 +11,10 @@ No installation into Program Files is required to test the standalone viewer.
 **Expected today:** the application reports the XML file name and root element. It does not yet render PCB geometry or calculate current.
 
 ## Launch the plugin bridge manually
-From PowerShell in the extracted folder:
+From PowerShell in the extracted folder (the bridge is now in a separate subfolder):
 
 ```powershell
-.\DipTraceSpice.Plugin.exe "C:\path\to\your\export.xml"
+.\bridge\DipTraceSpice.Plugin.exe "C:\path\to\your\export.xml"
 ```
 
 The bridge copies the file to a stable snapshot in `%LOCALAPPDATA%\DipTraceSpiceSimulator\Snapshots` and starts the viewer. This validates the launcher without needing to register it in DipTrace.
@@ -27,3 +27,7 @@ Standalone testing does **not** prove DipTrace detects the plugin manifest, pass
 
 ## Future deployment
 The target is a self-contained, user-writable, portable application. Direct Tools-menu registration is optional and may require IT approval or access to the plugin installation directory. Do not change system folder permissions to work around organization policy.
+
+## Startup crash fixed in packaging (2026-10-30)
+
+An early artifact crashed with .NET exit code `0xE0434352` and a missing `WindowsBase, Version=8.0.0.0` assembly. The CI pipeline previously merged two independent self-contained .NET publish directories, which can overwrite runtime dependencies. The packaging now isolates the plugin bridge in `bridge/`, verifies WPF DLLs, and smoke-tests WPF startup on the Windows runner. Download a **new artifact from a run after the packaging fix**, rather than reusing the previous ZIP.
