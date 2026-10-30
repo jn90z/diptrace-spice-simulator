@@ -21,13 +21,30 @@ jobs:
         run: dotnet publish src/DipTraceSpice.App/DipTraceSpice.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o artifacts/app
       - name: Publish plugin bridge
         run: dotnet publish src/DipTraceSpice.Plugin/DipTraceSpice.Plugin.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o artifacts/plugin
+      - name: Verify published WPF dependencies
+        shell: pwsh
+        run: |
+          if (!(Test-Path artifacts/app/WindowsBase.dll)) { throw 'WindowsBase.dll missing from WPF publish' }
+          if (!(Test-Path artifacts/app/PresentationFramework.dll)) { throw 'PresentationFramework.dll missing from WPF publish' }
       - name: Assemble DipTrace plugin folder
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts/DipTraceSpice | Out-Null
           Copy-Item artifacts/app/* artifacts/DipTraceSpice/ -Recurse -Force
-          Copy-Item artifacts/plugin/* artifacts/DipTraceSpice/ -Recurse -Force
-          Copy-Item plugin/settings.xml artifacts/DipTraceSpice/settings.xml
+          # Do not merge two self-contained .NET publishes: their runtime files overlap.
+          # Keep the viewer publish intact and place the bridge in its own folder.
+          New-Item -ItemType Directory -Force artifacts/DipTraceSpice/bridge | Out-Null
+          Copy-Item artifacts/plugin/* artifacts/DipTraceSpice/bridge/ -Recurse -Force
+          Copy-Item plugin/settings.xml artifacts/DipTraceSpice/bridge/settings.xml
+      - name: Smoke test packaged WPF application
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'artifacts/DipTraceSpice/DipTraceSpice.App.exe').Path
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 5
+          $p.Refresh()
+          if ($p.HasExited) { throw "WPF application exited during startup: $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
       - uses: actions/upload-artifact@v4
         with:
           name: DipTraceSpice-win-x64
