@@ -97,7 +97,7 @@ public partial class MainWindow : Window
             {
                 var p = Screen(silk.Position);
                 var label = new TextBlock { Text = silk.Text, Foreground = Brushes.OrangeRed,
-                    FontSize = Math.Clamp(silk.Height * scale, 9, 32), ToolTip = "Top silkscreen" };
+                    FontSize = Math.Max(0.1, silk.Height * scale), ToolTip = "Top silkscreen" };
                 Canvas.SetLeft(label, p.X); Canvas.SetTop(label, p.Y);
                 BoardCanvas.Children.Add(label);
             }
