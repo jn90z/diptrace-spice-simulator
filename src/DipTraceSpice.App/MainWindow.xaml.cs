@@ -15,6 +15,8 @@ public partial class MainWindow : Window
     private string? _pcbFile;
     private string? _schematicFile;
     private string? _selectedReference;
+    private readonly Dictionary<string, SpiceDiodeModel> _modelAssignments = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DcOperatingPoint> _dcResults = new(StringComparer.OrdinalIgnoreCase);
     private double _zoom = 1;
     private SpiceDiodeModel? _ledModel;
     public MainWindow()
@@ -42,7 +44,8 @@ public partial class MainWindow : Window
             .Select(pin => $"pin {pin.PinId}: {n.Name}")).ToArray();
         SelectedComponentInfo.Text = $"{reference} • {part.Name} • {(string.IsNullOrWhiteSpace(part.Value) ? "No value" : part.Value)} • " +
             (nets.Length == 0 ? "No connected nets" : string.Join(" | ", nets)) +
-            (_ledModel is null ? " • No SPICE model loaded" : $" • Loaded diode model: {_ledModel.Name} (not assigned)");
+            (_modelAssignments.TryGetValue(reference, out var assigned) ? $" • Assigned SPICE model: {assigned.Name}" : " • No SPICE model assigned") +
+            (_dcResults.TryGetValue(reference, out var result) ? $" • DC: {result.LedVolts:F4} V / {result.LedCurrentAmps * 1000:F3} mA / {result.LedVolts * result.LedCurrentAmps * 1000:F2} mW" : " • No DC result");
     }
     private void LoadModel_Click(object sender, RoutedEventArgs e)
     {
@@ -112,6 +115,9 @@ public partial class MainWindow : Window
             // A future component model-mapping dialog will make this explicit.
             var result = await NgspiceDcRunner.RunSchematicLedAsync(
                 executable, _ledModel, _schematic, "D1", 1, 0, milliamps / 1000);
+            _modelAssignments["D1"] = _ledModel;
+            _dcResults["D1"] = result;
+            if (_selectedReference == "D1") SelectComponent("D1");
             Status.Text = $"Schematic DC PASS • D1 • ILED={milliamps:F3} mA • VLED={result.LedVolts:F4} V • PLED={result.LedVolts * result.LedCurrentAmps * 1000:F2} mW. One-LED model only; no PCB parasitics.";
         }
         catch (Exception ex) { Status.Text = $"Schematic DC failed: {ex.Message}"; }
