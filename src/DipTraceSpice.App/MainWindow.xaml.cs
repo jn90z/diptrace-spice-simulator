@@ -12,6 +12,8 @@ public partial class MainWindow : Window
 {
     private PcbGeometry? _pcb;
     private SchematicCircuit? _schematic;
+    private string? _pcbFile;
+    private string? _schematicFile;
     private double _zoom = 1;
     private SpiceDiodeModel? _ledModel;
     public MainWindow()
@@ -92,9 +94,14 @@ public partial class MainWindow : Window
         catch (Exception ex) { Status.Text = $"Schematic DC failed: {ex.Message}"; }
         finally { button.IsEnabled = true; }
     }
-    private void OpenButton_Click(object sender, RoutedEventArgs e)
+    private void LoadPcb_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Filter = "DipTrace PCB Layout (*.dipxml)|*.dipxml|DipTrace Schematic (*.dchxml)|*.dchxml|All XML (*.xml;*.dipxml;*.dchxml)|*.xml;*.dipxml;*.dchxml|All files (*.*)|*.*" };
+        var dialog = new OpenFileDialog { Title = "Load DipTrace PCB Layout", Filter = "DipTrace PCB Layout (*.dipxml)|*.dipxml|All files (*.*)|*.*" };
+        if (dialog.ShowDialog() == true) OpenXml(dialog.FileName);
+    }
+    private void LoadSchematic_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Load DipTrace Schematic", Filter = "DipTrace Schematic (*.dchxml)|*.dchxml|All files (*.*)|*.*" };
         if (dialog.ShowDialog() == true) OpenXml(dialog.FileName);
     }
     private void OpenXml(string path)
@@ -111,18 +118,19 @@ public partial class MainWindow : Window
             if (kind == "DipTrace-PCB")
             {
                 _pcb = PcbGeometry.Load(path);
+                _pcbFile = path;
                 _zoom = 1;
                 Render();
                 Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers • {_pcb.FillSegments.Count} copper fill scanlines • {_pcb.SilkTexts.Count} silk labels • {_pcb.Pads.Count} pads • {_pcb.MountingHoles.Count} mounting holes. Preview only: vias, exact pour geometry and simulation are not implemented.";
             }
             else
             {
-                _pcb = null;
                 _schematic = SchematicCircuit.Load(path);
-                BoardCanvas.Children.Clear();
+                _schematicFile = path;
+                if (_pcb is null) BoardCanvas.Children.Clear();
                 var ledCount = _schematic.Parts.Count(p => p.Name.Equals("LED", StringComparison.OrdinalIgnoreCase));
                 var diagnosticText = _schematic.Diagnostics.Count == 0 ? "No topology warnings." : string.Join(" | ", _schematic.Diagnostics.Take(3));
-                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace schematic {version} • {_schematic.Parts.Count} parts • {_schematic.Nets.Count} nets • {ledCount} LED(s). {diagnosticText} Source/sink assignment and SPICE netlist generation are not yet implemented.";
+                Status.Text = $"Schematic: {System.IO.Path.GetFileName(path)} • PCB: {(_pcbFile is null ? "not loaded" : System.IO.Path.GetFileName(_pcbFile))} • DipTrace schematic {version} • {_schematic.Parts.Count} parts • {_schematic.Nets.Count} nets • {ledCount} LED(s). {diagnosticText} Source/sink assignment and SPICE netlist generation are not yet implemented.";
             }
         }
         catch (Exception ex) { Status.Text = $"Unable to load: {ex.Message}"; }
