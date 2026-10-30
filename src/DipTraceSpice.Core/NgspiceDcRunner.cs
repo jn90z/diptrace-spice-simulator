@@ -11,6 +11,67 @@ public static class NgspiceDcRunner
 {
     private static readonly Regex ValueLine = new(@"^\s*(?<name>v\(led\)|i\(v1\))\s*=\s*(?<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
+    public static async Task<DcOperatingPoint> RunSchematicLedAsync(
+        string executablePath, SpiceDiodeModel model, SchematicCircuit circuit,
+        string ledReference, int anodePin, int cathodePin, double currentAmps,
+        CancellationToken cancellationToken = default)
+    {
+        var netlist = SchematicDcNetlist.GenerateSingleLed(
+            circuit, model, ledReference, anodePin, cathodePin, currentAmps);
+        var output = await ExecuteAsync(executablePath, model, netlist, cancellationToken);
+        var match = Regex.Match(output,
+            @"(?im)^\s*v\(led\)\s*=\s*(?<v>[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*$");
+        if (!match.Success) throw new InvalidDataException("ngspice did not report v(led). Output: " + output);
+        var voltage = double.Parse(match.Groups["v"].Value, CultureInfo.InvariantCulture);
+        if (!double.IsFinite(voltage) || voltage < 0)
+            throw new InvalidDataException("ngspice reported an invalid LED forward voltage.");
+        return new(voltage, 0, voltage, currentAmps, output);
+    }
+
+    private static async Task<string> ExecuteAsync(
+        string executablePath, SpiceDiodeModel model, string netlist, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(executablePath)) throw new FileNotFoundException("Select a valid ngspice executable.", executablePath);
+        if (!File.Exists(model.SourcePath)) throw new FileNotFoundException("Source diode model is missing.", model.SourcePath);
+        var temp = Path.Combine(Path.GetTempPath(), "DipTraceSpice-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        try
+        {
+            var modelLines = File.ReadAllLines(model.SourcePath);
+            File.WriteAllLines(Path.Combine(temp, "diode.lib"), modelLines.Where(line =>
+                !Regex.IsMatch(line, @"^\s*\+\s*mfg\s*=", RegexOptions.IgnoreCase)));
+            File.WriteAllText(Path.Combine(temp, "bench.cir"), netlist);
+            using var process = new Process { StartInfo = new ProcessStartInfo {
+                FileName = executablePath, WorkingDirectory = temp,
+                ArgumentList = { "-b", "bench.cir" }, UseShellExecute = false,
+                CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true
+            }};
+            if (!process.Start()) throw new InvalidOperationException("ngspice did not start.");
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            try
+            {
+                var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+                var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+                await process.WaitForExitAsync(timeout.Token);
+                var output = (await stdout) + Environment.NewLine + (await stderr);
+                if (process.ExitCode != 0 || output.Contains("Error:", StringComparison.OrdinalIgnoreCase) ||
+                    output.Contains("fatal error", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException($"ngspice failed (exit {process.ExitCode}): {output}");
+                return output;
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                throw new TimeoutException("ngspice exceeded the 20-second limit or was cancelled.");
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(temp, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
     public static async Task<DcOperatingPoint> RunAsync(
         string executablePath, SpiceDiodeModel model, double supplyVolts = 5, double resistorOhms = 36,
         CancellationToken cancellationToken = default)
