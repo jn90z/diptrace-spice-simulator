@@ -6,7 +6,7 @@ An independent, open-source PCB analysis tool intended to display **calculated**
 
 > **Current status: M1 integration prototype.** A read-only DipTrace PCB plugin launcher and XML-opening WPF viewer have been scaffolded. The viewer does **not** render PCB copper yet, and no electrical simulation has been implemented or validated.
 
-## What is available now
+## Confirmed DipTrace 5.3 XML samples\n\nTwo local sample files from DipTrace **5.3.0.3** were inspected (not committed): `TEST_BOARD_GER.dipxml` has root `Source Type="DipTrace-PCB"`, `Units="inch"`, with board outline, two copper layers, nine component entries, two nets, and copper pours; `TEST_BOARD_SCH.dchxml` has root `Source Type="DipTrace-Schematic"`, seven component entries, three nets, and a Simulator section. XML extension support and root metadata display are implemented; geometry import and simulation remain pending. Do not upload private board designs to the public repository.\n\n## What is available now
 
 - DipTrace PCB plugin manifest configured for full XML export and **no import/writeback**
 - C# plugin bridge that copies the host's temporary exchange file before launching the viewer
