@@ -39,7 +39,7 @@ public partial class MainWindow : Window
                 _pcb = PcbGeometry.Load(path);
                 _zoom = 1;
                 Render();
-                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers • {_pcb.FillSegments.Count} copper fill scanlines • {_pcb.SilkTexts.Count} silk labels • {_pcb.Pads.Count} pads • {_pcb.MountingHoles.Count} mounting holes. Preview only: pads, vias, exact pour geometry and simulation are not implemented.";
+                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers • {_pcb.FillSegments.Count} copper fill scanlines • {_pcb.SilkTexts.Count} silk labels • {_pcb.Pads.Count} pads • {_pcb.MountingHoles.Count} mounting holes. Preview only: vias, exact pour geometry and simulation are not implemented.";
             }
             else
             {
@@ -133,11 +133,25 @@ public partial class MainWindow : Window
         {
             foreach (var silk in _pcb.SilkTexts)
             {
+                // Text outside the board is documentation, not on-board silkscreen.
+                if (silk.Position.X < minX || silk.Position.X > maxX ||
+                    silk.Position.Y < minY || silk.Position.Y > maxY) continue;
                 var p = Screen(silk.Position);
+                var w = Math.Max(.1, silk.Width * scale);
+                var h = Math.Max(.1, silk.Height * scale);
                 var label = new TextBlock { Text = silk.Text, Foreground = Brushes.OrangeRed,
-                    FontSize = Math.Max(0.1, silk.Height * scale / Math.Max(1, silk.Text.Split('\n').Length) / 1.2), ToolTip = "Top silkscreen" };
-                Canvas.SetLeft(label, p.X); Canvas.SetTop(label, p.Y);
-                BoardCanvas.Children.Add(label);
+                    FontFamily = new FontFamily("Arial"), FontSize = 14, TextWrapping = TextWrapping.NoWrap,
+                    ToolTip = "Top silkscreen" };
+                // The XML gives text geometry in board units. Scaling a Viewbox
+                // avoids font metrics changing independently from PCB zoom.
+                var view = new Viewbox { Width = w, Height = h, Stretch = Stretch.Fill, Child = label };
+                var left = silk.HorizontalAlignment == "Center" ? p.X - w / 2 :
+                    silk.HorizontalAlignment == "Right" ? p.X - w : p.X;
+                var top = silk.VerticalAlignment == "Center" ? p.Y - h / 2 :
+                    silk.VerticalAlignment == "Bottom" ? p.Y - h : p.Y;
+                Canvas.SetLeft(view, left);
+                Canvas.SetTop(view, top);
+                BoardCanvas.Children.Add(view);
             }
         }
         if (ComponentsToggle.IsChecked == true)
