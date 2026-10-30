@@ -39,7 +39,7 @@ public partial class MainWindow : Window
                 _pcb = PcbGeometry.Load(path);
                 _zoom = 1;
                 Render();
-                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers. Preview only: arcs, pads, vias, pours and simulation are not implemented.";
+                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers • {_pcb.FillSegments.Count} copper fill scanlines • {_pcb.SilkTexts.Count} silk labels. Preview only: pads, vias, exact pour geometry and simulation are not implemented.";
             }
             else
             {
@@ -71,12 +71,36 @@ public partial class MainWindow : Window
         foreach (var p in _pcb.Outline) outline.Points.Add(Screen(p));
         outline.Points.Add(Screen(_pcb.Outline[0]));
         BoardCanvas.Children.Add(outline);
+        // Copper fill scanlines are a visual approximation, not a solver mesh.
+        if (PoursToggle.IsChecked == true)
+        {
+            foreach (var fill in _pcb.FillSegments)
+            {
+                if (fill.Layer == 0 && TopLayer.IsChecked != true || fill.Layer == 1 && BottomLayer.IsChecked != true) continue;
+                var a = Screen(fill.Start); var b = Screen(fill.End);
+                BoardCanvas.Children.Add(new Line { X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y,
+                    Stroke = fill.Layer == 0 ? Brushes.Khaki : Brushes.SteelBlue,
+                    StrokeThickness = Math.Max(1, fill.Spacing * scale), Opacity = 0.62,
+                    ToolTip = "Copper fill preview (scanline approximation)" });
+            }
+        }
         foreach (var trace in _pcb.Traces)
         {
             if (trace.Layer == 0 && TopLayer.IsChecked != true || trace.Layer == 1 && BottomLayer.IsChecked != true) continue;
             if (trace.Points.Count < 2) continue;
             var a = Screen(trace.Points[0]); var b = Screen(trace.Points[1]);
             BoardCanvas.Children.Add(new Line { X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y, Stroke = trace.Layer == 0 ? Brushes.Orange : Brushes.CornflowerBlue, StrokeThickness = Math.Max(1, trace.Width * scale), StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, ToolTip = trace.Net });
+        }
+        if (SilkToggle.IsChecked == true)
+        {
+            foreach (var silk in _pcb.SilkTexts)
+            {
+                var p = Screen(silk.Position);
+                var label = new TextBlock { Text = silk.Text, Foreground = Brushes.OrangeRed,
+                    FontSize = Math.Clamp(silk.Height * scale, 9, 32), ToolTip = "Top silkscreen" };
+                Canvas.SetLeft(label, p.X); Canvas.SetTop(label, p.Y);
+                BoardCanvas.Children.Add(label);
+            }
         }
         if (ComponentsToggle.IsChecked == true)
         {
