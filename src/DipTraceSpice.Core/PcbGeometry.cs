@@ -6,8 +6,12 @@ namespace DipTraceSpice.Core;
 public sealed record PcbPoint(double X, double Y);
 public sealed record PcbTrace(int Layer, double Width, string Net, IReadOnlyList<PcbPoint> Points);
 public sealed record PcbComponent(string Reference, double X, double Y);
+public sealed record PcbFillSegment(int Layer, PcbPoint Start, PcbPoint End, double Spacing);
+public sealed record PcbSilkText(string Text, PcbPoint Position, double Height);
 public sealed record PcbGeometry(string Version, string Units, IReadOnlyList<PcbPoint> Outline, IReadOnlyList<PcbTrace> Traces, IReadOnlyList<PcbComponent> Components, IReadOnlyList<string> Layers)
 {
+    public IReadOnlyList<PcbFillSegment> FillSegments { get; init; } = [];
+    public IReadOnlyList<PcbSilkText> SilkTexts { get; init; } = [];
     public static PcbGeometry Load(string path)
     {
         var settings = new System.Xml.XmlReaderSettings { DtdProcessing = System.Xml.DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 100_000_000 };
@@ -27,6 +31,33 @@ public sealed record PcbGeometry(string Version, string Units, IReadOnlyList<Pcb
             }) ?? []).ToArray() ?? [];
         var components = board.Element("Components")?.Elements("Component")
             .Select(e => new PcbComponent((string?)e.Element("RefDes") ?? "?", N(e, "X"), N(e, "Y"))).ToArray() ?? [];
-        return new((string?)root.Attribute("Version") ?? "unknown", (string?)root.Attribute("Units") ?? "", outline, traces, components, layers);
+        // DipTrace CopperPourFills/L uses five-value scanline records:
+        // x1 y1 x2 y2 flag. This is a preview of actual fill stripes,
+        // not a replacement for polygon/clearance-aware copper meshing.
+        var fills = board.Element("CopperPourFills")?.Elements("Fill").ToArray() ?? [];
+        var pours = board.Element("CopperPours")?.Elements("CopperPour").ToArray() ?? [];
+        var fillSegments = new List<PcbFillSegment>();
+        for (var i = 0; i < fills.Length; i++)
+        {
+            var values = (fills[i].Element("L")?.Value ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (values.Length % 5 != 0) continue;
+            var layer = i < pours.Length ? (int)N(pours[i], "Lay") : 0;
+            var spacing = i < pours.Length ? N(pours[i], "LineSpacing") : 0.03;
+            for (var j = 0; j < values.Length; j += 5)
+            {
+                if (double.TryParse(values[j], NumberStyles.Float, CultureInfo.InvariantCulture, out var x1) &&
+                    double.TryParse(values[j + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y1) &&
+                    double.TryParse(values[j + 2], NumberStyles.Float, CultureInfo.InvariantCulture, out var x2) &&
+                    double.TryParse(values[j + 3], NumberStyles.Float, CultureInfo.InvariantCulture, out var y2))
+                    fillSegments.Add(new(layer, new(x1, y1), new(x2, y2), spacing));
+            }
+        }
+        var silk = board.Element("Shapes")?.Elements("Shape")
+            .Where(e => (string?)e.Attribute("Type") == "Text" && (string?)e.Attribute("Layer") == "Top Silk")
+            .Select(e => new PcbSilkText(string.Join(" ", e.Element("TextLines")?.Elements("TextLine").Select(t => t.Value) ?? []),
+                P(e.Element("Points")?.Element("Point") ?? e), N(e, "TextHeight")))
+            .Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToArray() ?? [];
+        return new((string?)root.Attribute("Version") ?? "unknown", (string?)root.Attribute("Units") ?? "", outline, traces, components, layers)
+        { FillSegments = fillSegments, SilkTexts = silk };
     }
 }
