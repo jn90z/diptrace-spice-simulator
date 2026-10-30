@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build and test (when solution exists)
+        shell: pwsh
+        run: |
+          $solutions = @(Get-ChildItem -Path . -Filter *.sln -File)
+          if ($solutions.Count -eq 0) {
+            Write-Host "M0 documentation-only repository: no solution to build yet."
+            exit 0
+          }
+          foreach ($solution in $solutions) {
+            dotnet restore $solution.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            dotnet build $solution.FullName --configuration Release --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            dotnet test $solution.FullName --configuration Release --no-build
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
