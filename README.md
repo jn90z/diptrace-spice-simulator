@@ -19,6 +19,7 @@ A portable, read-only PCB viewer and future electrical-analysis tool for DipTrac
 | Pattern pads and mounting-hole preview | Implemented and user-tested visually
 | Vias, exact pour polygons/clearances, curved outlines, pan | Planned |
 | Native C++20 DLL scaffold | Builds independently; no simulation |
+| Local diode SPICE model import | Implemented; CI and UI validation pending |
 | ngspice integration | Planned; not bundled or called |
 | Copper current-density solver | Planned |
 | Direct Tools → Plugins launch | Not yet verified |
@@ -82,7 +83,7 @@ GitHub Actions builds the managed application and native stub independently, exe
 - **M0 — Repository and CI:** complete.
 - **M1 — Portable app and XML import:** verified; direct DipTrace plugin launch pending.
 - **M2 — PCB geometry viewer:** in progress.
-- **M3 — Circuit model and ngspice adapter:** planned.
+- **M3 — Circuit model and ngspice adapter:** diode model import and validation tests implemented; ngspice execution pending.
 - **M4 — Copper resistive network and validation:** planned.
 - **M5 — Current-density heatmaps and reports:** planned.
 - **M6 — Advanced LED population variants and transient analysis:** planned.
