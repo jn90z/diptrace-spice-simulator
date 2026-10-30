@@ -1,57 +1,69 @@
 # DipTrace SPICE Simulator
 
-**DipTrace 5.3+** | **Windows** | **C#/.NET 8 WPF + C++20** | **MIT**
+**DipTrace 5.3+ · Windows · C#/.NET 8 WPF + C++20 · MIT**
 
-An independent, open-source PCB analysis tool intended to display **calculated** current distribution, voltage drop, and power dissipation over actual DipTrace copper geometry.
+A portable, read-only PCB viewer and future electrical-analysis tool for DipTrace designs. The goal is to display **calculated** voltage drop and current density on the physical PCB, not decorative current animations.
 
-> **Current status: M2 initial geometry preview (unverified Windows build).** The WPF viewer now parses PCB outlines, straight trace segments and component center positions from `.dipxml`. Arc handling, pad/via geometry, copper pour fills and electrical simulation are not implemented.
+> **Project status — M2: early PCB geometry viewer.** Standalone startup and DipTrace XML recognition have been user-tested. The latest geometry renderer still requires build and visual verification. No electrical solver or SPICE integration is functional yet.
 
-## Confirmed DipTrace 5.3 XML samples\n\nTwo local sample files from DipTrace **5.3.0.3** were inspected (not committed): `TEST_BOARD_GER.dipxml` has root `Source Type="DipTrace-PCB"`, `Units="inch"`, with board outline, two copper layers, nine component entries, two nets, and copper pours; `TEST_BOARD_SCH.dchxml` has root `Source Type="DipTrace-Schematic"`, seven component entries, three nets, and a Simulator section. XML extension support and root metadata display are implemented; geometry import and simulation remain pending. Do not upload private board designs to the public repository.\n\n## What is available now
+## Current capabilities
 
-- DipTrace PCB plugin manifest configured for full XML export and **no import/writeback**
-- C# plugin bridge that copies the host's temporary exchange file before launching the viewer
-- WPF window with `.dipxml`/`.dchxml` file picker and secure XML root inspection
-- Initial `.dipxml` geometry renderer: outline vertices, straight copper trace segments, component centers, top/bottom visibility and wheel zoom
-- Synthetic XML regression test for geometry parsing
-- C++20 native DLL stub exposing an ABI version function (not a solver)
-- Windows GitHub Actions CI: .NET build, unit tests, managed app artifact and native DLL artifact
-- Basic unit test and project documentation
+| Feature | Status |
+| --- | --- |
+| Portable Windows WPF application | Verified on user's PC |
+| Open `.dipxml` PCB and `.dchxml` schematic | Verified |
+| DipTrace 5.3.0.3 XML metadata | Verified |
+| Board outline, straight trace segments, component centers | Implemented; visual verification pending |
+| Layer toggles, fit-to-board and wheel zoom | Implemented; testing pending |
+| Pads, vias, pours, curved outlines, pan | Planned |
+| Native C++20 DLL scaffold | Builds independently; no simulation |
+| ngspice integration | Planned; not bundled or called |
+| Copper current-density solver | Planned |
+| Direct Tools → Plugins launch | Not yet verified |
 
-## Install and test
+## Getting started without administrator permissions
 
-Follow **[Windows installation and smoke test](docs/install.md)**. Download the `DipTraceSpice-win-x64` artifact from a successful GitHub Actions CI run. A passing build has **not yet been verified**.
+1. Visit [GitHub Actions](https://github.com/jn90z/diptrace-spice-simulator/actions) and select a successful **CI** run.
+2. Download the `DipTraceSpice-win-x64` artifact.
+3. Extract the **entire archive** to a writable folder.
+4. Run `DipTraceSpice.App.exe`.
+5. Open a DipTrace PCB XML (`.dipxml`) or schematic XML (`.dchxml`).
+
+For plugin-bridge testing and troubleshooting, see [Portable testing](docs/portable-testing.md). Direct integration with DipTrace's Tools menu requires a separate host test.
+
+## How simulation will work
+
+We will **not** write a new general-purpose SPICE engine.
+
+- **ngspice (planned, external dependency):** nonlinear device and circuit analysis using models/netlists; not currently integrated.
+- **Our C++20 solver (planned):** geometry-aware resistive copper network, current sharing, voltage drop and current-density calculations.
+- **Our C# WPF viewer:** DipTrace XML import, layer rendering, net selection, results and diagnostics.
+
+DipTrace already includes ngspice-based schematic simulation and can export SPICE `.cir` netlists. Our distinctive feature is relating circuit currents to the **actual copper geometry**. We must validate connectivity and solver accuracy before reporting physical results.
+
+See [SPICE research and architecture decision](docs/spice-research.md).
 
 ## Architecture
 
 ```text
-DipTrace PCB Layout 5.3+
-  └─ Tools → Plugins → PCB Current Flow Simulator
-       └─ DipTraceSpice.Plugin.exe (C#)
-            ├─ Copy plugin_exchange.xml to a stable snapshot
-            └─ Launch DipTraceSpice.App.exe (C# / WPF)
-                 ├─ DipTrace XML importer and PCB viewer [planned]
-                 └─ P/Invoke → C++20 native engine [planned]
-                       ├─ Circuit / SPICE adapter [planned]
-                       ├─ Copper resistive network [planned]
-                       └─ Current-density solver [planned]
+DipTrace 5.3+ (.dipxml / .dchxml / optional .cir)
+               |
+        C# WPF viewer
+        |             |
+  XML geometry    Circuit adapter [planned]
+  importer        |
+        |          ngspice [planned]
+        |             |
+        +-- C++20 copper-network solver [planned]
+                     |
+          Voltage/current-density results [planned]
 ```
 
-A live overlay inside DipTrace's own PCB canvas is **not** assumed to be supported. The initial UI is an independent window launched from DipTrace.
+The application is an independent window. A live overlay inside DipTrace's PCB canvas is not assumed to be supported.
 
-## Roadmap
+## Build from source
 
-- **M0 complete:** license, documentation, repository structure, initial CI
-- **M1 partially verified:** standalone Windows app startup and DipTrace 5.3 XML imports confirmed by user; direct Tools-menu integration not yet tested
-- **M2 in progress:** initial straight-segment outline/trace renderer and component center markers; curved outlines, pads, vias, copper pours, pan and layer-specific geometry remain
-- **M3:** deterministic electrical network benchmarks and component models
-- **M4:** spatial copper-current solver, validated against analytical and measured paths
-- **M5:** accurate heatmaps, current arrows, units, warnings and reports
-- **M6:** SPICE integration, LED models and population variants
-- **Later:** thermal and 3D views
-
-## Build locally
-
-Install .NET 8 SDK, Visual Studio 2022 with .NET desktop development and C++ build tools, and CMake.
+Prerequisites: Visual Studio 2022 with .NET desktop development and C++ tools, .NET 8 SDK, CMake.
 
 ```powershell
 dotnet restore DipTraceSpice.sln
@@ -61,19 +73,29 @@ cmake -S native -B native/build -A x64
 cmake --build native/build --config Release
 ```
 
-The WPF viewer and C++ DLL currently build separately. The DLL is not yet called by the viewer.
+GitHub Actions builds the managed application and native stub independently, executes unit tests and performs a packaged WPF startup smoke test.
 
-## Engineering and security notes
+## Milestones
 
-Simulation must use actual electrical models and copper geometry, not decorative current animations. Imported XML is untrusted; external entities are disabled. This tool is not certified for safety-critical or production-release verification. Do not commit proprietary DipTrace SDK materials or customer designs without redistribution rights.
+- **M0 — Repository and CI:** complete.
+- **M1 — Portable app and XML import:** verified; direct DipTrace plugin launch pending.
+- **M2 — PCB geometry viewer:** in progress.
+- **M3 — Circuit model and ngspice adapter:** planned.
+- **M4 — Copper resistive network and validation:** planned.
+- **M5 — Current-density heatmaps and reports:** planned.
+- **M6 — Advanced LED population variants and transient analysis:** planned.
 
 ## Documentation
 
-- [Install and smoke test](docs/install.md)
+- [Portable installation and testing](docs/portable-testing.md)
+- [DipTrace plugin installation](docs/install.md)
+- [SPICE research and architecture decision](docs/spice-research.md)
 - [Architecture](docs/architecture.md)
 - [Development](docs/development.md)
 - [Compatibility](docs/compatibility.md)
-- [Native interop](docs/native-interop.md)
+- [Native interoperability](docs/native-interop.md)
 - [Contributing](CONTRIBUTING.md)
 
-MIT licensed. Copyright (c) 2026 Joseph Niksa. Not affiliated with or endorsed by DipTrace/Novarm.
+**Security:** Do not commit confidential PCB designs, proprietary DipTrace SDK files, or third-party component models without redistribution permission. Imported XML is untrusted. This software is not certified for safety-critical design verification.
+
+MIT licensed. Copyright © 2026 Joseph Niksa. Not affiliated with or endorsed by DipTrace / Novarm.
