@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         var minY = _pcb.Outline.Min(p => p.Y); var maxY = _pcb.Outline.Max(p => p.Y);
         var scale = Math.Min((BoardCanvas.ActualWidth - 70) / Math.Max(.001, maxX - minX), (BoardCanvas.ActualHeight - 70) / Math.Max(.001, maxY - minY)) * _zoom;
         var cx = (minX + maxX) / 2; var cy = (minY + maxY) / 2;
-        Point Screen(PcbPoint p) => new((p.X - cx) * scale + BoardCanvas.ActualWidth / 2, (p.Y - cy) * scale + BoardCanvas.ActualHeight / 2);
+        Point Screen(PcbPoint p) => new((p.X - cx) * scale + BoardCanvas.ActualWidth / 2, (cy - p.Y) * scale + BoardCanvas.ActualHeight / 2);
         var outline = new Polyline { Stroke = Brushes.LightGray, StrokeThickness = 2 };
         foreach (var p in _pcb.Outline) outline.Points.Add(Screen(p));
         outline.Points.Add(Screen(_pcb.Outline[0]));
@@ -97,7 +97,7 @@ public partial class MainWindow : Window
             {
                 var p = Screen(silk.Position);
                 var label = new TextBlock { Text = silk.Text, Foreground = Brushes.OrangeRed,
-                    FontSize = Math.Max(0.1, silk.Height * scale), ToolTip = "Top silkscreen" };
+                    FontSize = Math.Max(0.1, silk.Height * scale / Math.Max(1, silk.Text.Split('\n').Length) / 1.2), ToolTip = "Top silkscreen" };
                 Canvas.SetLeft(label, p.X); Canvas.SetTop(label, p.Y);
                 BoardCanvas.Children.Add(label);
             }
