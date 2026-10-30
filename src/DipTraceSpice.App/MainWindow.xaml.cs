@@ -39,7 +39,7 @@ public partial class MainWindow : Window
                 _pcb = PcbGeometry.Load(path);
                 _zoom = 1;
                 Render();
-                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers • {_pcb.FillSegments.Count} copper fill scanlines • {_pcb.SilkTexts.Count} silk labels. Preview only: pads, vias, exact pour geometry and simulation are not implemented.";
+                Status.Text = $"{System.IO.Path.GetFileName(path)} • DipTrace {version} • {_pcb.Outline.Count} outline points • {_pcb.Traces.Count} trace segments • {_pcb.Components.Count} component centers • {_pcb.Layers.Count} copper layers • {_pcb.FillSegments.Count} copper fill scanlines • {_pcb.SilkTexts.Count} silk labels • {_pcb.Pads.Count} pads • {_pcb.MountingHoles.Count} mounting holes. Preview only: pads, vias, exact pour geometry and simulation are not implemented.";
             }
             else
             {
@@ -90,6 +90,44 @@ public partial class MainWindow : Window
             if (trace.Points.Count < 2) continue;
             var a = Screen(trace.Points[0]); var b = Screen(trace.Points[1]);
             BoardCanvas.Children.Add(new Line { X1 = a.X, Y1 = a.Y, X2 = b.X, Y2 = b.Y, Stroke = trace.Layer == 0 ? Brushes.Orange : Brushes.CornflowerBlue, StrokeThickness = Math.Max(1, trace.Width * scale), StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, ToolTip = trace.Net });
+        }
+        // Draw the drill openings after copper so they remain visible.
+        foreach (var hole in _pcb.MountingHoles)
+        {
+            var p = Screen(hole.Center);
+            var diameter = Math.Max(1, hole.Diameter * scale);
+            var aperture = new Ellipse { Width = diameter, Height = diameter,
+                Fill = new SolidColorBrush(Color.FromRgb(24, 40, 56)),
+                Stroke = Brushes.Silver, StrokeThickness = 1, ToolTip = "Mounting hole" };
+            Canvas.SetLeft(aperture, p.X - diameter / 2);
+            Canvas.SetTop(aperture, p.Y - diameter / 2);
+            BoardCanvas.Children.Add(aperture);
+        }
+        if (TopLayer.IsChecked == true)
+        {
+            foreach (var pad in _pcb.Pads)
+            {
+                var p = Screen(pad.Center);
+                var w = Math.Max(.1, pad.Width * scale);
+                var h = Math.Max(.1, pad.Height * scale);
+                var element = new Border { Width = w, Height = h,
+                    Background = Brushes.Gold, BorderBrush = Brushes.DarkGoldenrod,
+                    BorderThickness = new Thickness(.6), CornerRadius = pad.Shape == "Ellipse" ? new CornerRadius(Math.Min(w, h) / 2) : new CornerRadius(0),
+                    ToolTip = $"{pad.Reference} pad {pad.Number} • NetId {pad.NetId}" };
+                element.RenderTransform = new RotateTransform(-pad.Angle * 180 / Math.PI, w / 2, h / 2);
+                Canvas.SetLeft(element, p.X - w / 2);
+                Canvas.SetTop(element, p.Y - h / 2);
+                BoardCanvas.Children.Add(element);
+                if (pad.ThroughHole && pad.Drill > 0)
+                {
+                    var drill = Math.Max(.1, pad.Drill * scale);
+                    var opening = new Ellipse { Width = drill, Height = drill,
+                        Fill = new SolidColorBrush(Color.FromRgb(24, 40, 56)) };
+                    Canvas.SetLeft(opening, p.X - drill / 2);
+                    Canvas.SetTop(opening, p.Y - drill / 2);
+                    BoardCanvas.Children.Add(opening);
+                }
+            }
         }
         if (SilkToggle.IsChecked == true)
         {
