@@ -20,7 +20,7 @@ A portable, read-only PCB viewer and future electrical-analysis tool for DipTrac
 | Vias, exact pour polygons/clearances, curved outlines, pan | Planned |
 | Native C++20 DLL scaffold | Builds independently; no simulation |
 | Local diode SPICE model import | Implemented; CI and UI validation pending |
-| ngspice integration | Planned; not bundled or called |
+| ngspice DC bench runner | Implemented; requires user-selected ngspice.exe and runtime verification |
 | Copper current-density solver | Planned |
 | Direct Tools → Plugins launch | Not yet verified |
 
@@ -45,6 +45,16 @@ We will **not** write a new general-purpose SPICE engine.
 DipTrace already includes ngspice-based schematic simulation and can export SPICE `.cir` netlists. Our distinctive feature is relating circuit currents to the **actual copper geometry**. We must validate connectivity and solver accuracy before reporting physical results.
 
 See [SPICE research and architecture decision](docs/spice-research.md).
+
+## Test a real LED DC operating point
+
+1. Download a successful CI build and launch the viewer.
+2. Select **Load LED SPICE model…** and choose your local Cree model TXT file.
+3. Install or extract a trusted Windows ngspice distribution separately (not bundled).
+4. Select **Run LED DC test…** and choose its `ngspice.exe`.
+5. The app runs an isolated 5 V / 36 Ω resistor / diode bench and reports calculated LED forward voltage and current. This is **not** a PCB netlist or copper-current simulation. The test resistor is illustrative, not a production LED-driver recommendation.
+
+See [LED model validation](docs/led-model-validation.md).
 
 ## Architecture
 
@@ -83,7 +93,7 @@ GitHub Actions builds the managed application and native stub independently, exe
 - **M0 — Repository and CI:** complete.
 - **M1 — Portable app and XML import:** verified; direct DipTrace plugin launch pending.
 - **M2 — PCB geometry viewer:** in progress.
-- **M3 — Circuit model and ngspice adapter:** diode model import and validation tests implemented; ngspice execution pending.
+- **M3 — Circuit model and ngspice adapter:** local diode model importer and external ngspice DC bench runner implemented; real-world run verification pending.
 - **M4 — Copper resistive network and validation:** planned.
 - **M5 — Current-density heatmaps and reports:** planned.
 - **M6 — Advanced LED population variants and transient analysis:** planned.
