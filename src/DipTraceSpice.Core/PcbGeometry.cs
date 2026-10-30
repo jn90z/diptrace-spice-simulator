@@ -8,9 +8,13 @@ public sealed record PcbTrace(int Layer, double Width, string Net, IReadOnlyList
 public sealed record PcbComponent(string Reference, double X, double Y);
 public sealed record PcbFillSegment(int Layer, PcbPoint Start, PcbPoint End, double Spacing);
 public sealed record PcbSilkText(string Text, PcbPoint Position, double Height);
+public sealed record PcbPad(string Reference, string Number, int NetId, PcbPoint Center, double Width, double Height, double Angle, string Shape, bool ThroughHole, double Drill);
+public sealed record PcbMountingHole(PcbPoint Center, double Diameter);
 public sealed record PcbGeometry(string Version, string Units, IReadOnlyList<PcbPoint> Outline, IReadOnlyList<PcbTrace> Traces, IReadOnlyList<PcbComponent> Components, IReadOnlyList<string> Layers)
 {
     public IReadOnlyList<PcbFillSegment> FillSegments { get; init; } = [];
+    public IReadOnlyList<PcbPad> Pads { get; init; } = [];
+    public IReadOnlyList<PcbMountingHole> MountingHoles { get; init; } = [];
     public IReadOnlyList<PcbSilkText> SilkTexts { get; init; } = [];
     public static PcbGeometry Load(string path)
     {
@@ -57,7 +61,52 @@ public sealed record PcbGeometry(string Version, string Units, IReadOnlyList<Pcb
             .Select(e => new PcbSilkText(string.Join("\n", e.Element("TextLines")?.Elements("TextLine").Select(t => t.Value) ?? []),
                 P(e.Element("Points")?.Element("Point") ?? e), N(e, "TextHeight")))
             .Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToArray() ?? [];
+        // Resolve physical pad geometry from the embedded DipTrace pattern library.
+        var library = root.Element("Library")?.Element("Library");
+        var styles = library?.Element("PadStyles")?.Elements("PadStyle")
+            .Where(e => e.Attribute("Name") is not null)
+            .ToDictionary(e => (string)e.Attribute("Name")!, e => e) ?? new Dictionary<string, XElement>();
+        var patterns = library?.Element("Patterns")?.Elements("Pattern")
+            .Where(e => e.Attribute("PatternStyle") is not null)
+            .ToDictionary(e => (string)e.Attribute("PatternStyle")!, e => e) ?? new Dictionary<string, XElement>();
+        var pads = new List<PcbPad>();
+        var holes = new List<PcbMountingHole>();
+        foreach (var component in board.Element("Components")?.Elements("Component") ?? [])
+        {
+            var patternKey = (string?)component.Attribute("PatternStyle");
+            if (patternKey is null || !patterns.TryGetValue(patternKey, out var pattern)) continue;
+            var cx = N(component, "X"); var cy = N(component, "Y");
+            var angle = N(component, "Angle");
+            var origin = pattern.Element("Origin");
+            var ox = origin is null ? 0 : N(origin, "X");
+            var oy = origin is null ? 0 : N(origin, "Y");
+            PcbPoint World(double x, double y)
+            {
+                x -= ox; y -= oy;
+                return new(cx + x * Math.Cos(angle) - y * Math.Sin(angle),
+                           cy + x * Math.Sin(angle) + y * Math.Cos(angle));
+            }
+            var reference = (string?)component.Element("RefDes") ?? "?";
+            var connections = component.Element("Pads")?.Elements("Pad")
+                .ToDictionary(e => (string?)e.Attribute("Id") ?? "", e => (int)N(e, "NetId"))
+                ?? new Dictionary<string, int>();
+            foreach (var pad in pattern.Element("Pads")?.Elements("Pad") ?? [])
+            {
+                var styleKey = (string?)pad.Attribute("Style") ?? (string?)pattern.Element("DefPad")?.Attribute("Style");
+                if (styleKey is null || !styles.TryGetValue(styleKey, out var style)) continue;
+                var stack = style.Element("MainStack");
+                if (stack is null) continue;
+                var padId = (string?)pad.Attribute("Id") ?? "";
+                var net = connections.TryGetValue(padId, out var value) ? value : -1;
+                pads.Add(new(reference, (string?)pad.Element("Number") ?? padId, net,
+                    World(N(pad, "X"), N(pad, "Y")), N(stack, "Width"), N(stack, "Height"),
+                    angle + N(pad, "Angle"), (string?)stack.Attribute("Shape") ?? "Rectangle",
+                    (string?)style.Attribute("Type") == "Through", N(style, "Hole")));
+            }
+            foreach (var hole in pattern.Element("Holes")?.Elements("Hole") ?? [])
+                holes.Add(new(World(N(hole, "X"), N(hole, "Y")), N(hole, "HoleDiam")));
+        }
         return new((string?)root.Attribute("Version") ?? "unknown", (string?)root.Attribute("Units") ?? "", outline, traces, components, layers)
-        { FillSegments = fillSegments, SilkTexts = silk };
+        { FillSegments = fillSegments, SilkTexts = silk, Pads = pads, MountingHoles = holes };
     }
 }
