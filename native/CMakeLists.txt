@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(DipTraceSpiceNative LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_library(DipTraceSpiceNative SHARED src/simulator.cpp)
+target_include_directories(DipTraceSpiceNative PUBLIC include)
