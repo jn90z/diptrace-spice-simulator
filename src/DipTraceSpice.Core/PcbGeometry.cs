@@ -54,7 +54,7 @@ public sealed record PcbGeometry(string Version, string Units, IReadOnlyList<Pcb
         }
         var silk = board.Element("Shapes")?.Elements("Shape")
             .Where(e => (string?)e.Attribute("Type") == "Text" && (string?)e.Attribute("Layer") == "Top Silk")
-            .Select(e => new PcbSilkText(string.Join(" ", e.Element("TextLines")?.Elements("TextLine").Select(t => t.Value) ?? []),
+            .Select(e => new PcbSilkText(string.Join("\n", e.Element("TextLines")?.Elements("TextLine").Select(t => t.Value) ?? []),
                 P(e.Element("Points")?.Element("Point") ?? e), N(e, "TextHeight")))
             .Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToArray() ?? [];
         return new((string?)root.Attribute("Version") ?? "unknown", (string?)root.Attribute("Units") ?? "", outline, traces, components, layers)
