@@ -1,31 +1,52 @@
 name: CI
-
 on:
   push:
   pull_request:
   workflow_dispatch:
-
 jobs:
-  build-and-test:
+  windows-build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Build and test (when solution exists)
+      - name: Restore
+        run: dotnet restore DipTraceSpice.sln
+      - name: Build
+        run: dotnet build DipTraceSpice.sln --configuration Release --no-restore
+      - name: Unit tests
+        run: dotnet test DipTraceSpice.sln --configuration Release --no-build --logger trx
+      - name: Publish WPF viewer
+        run: dotnet publish src/DipTraceSpice.App/DipTraceSpice.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o artifacts/app
+      - name: Publish plugin bridge
+        run: dotnet publish src/DipTraceSpice.Plugin/DipTraceSpice.Plugin.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o artifacts/plugin
+      - name: Assemble DipTrace plugin folder
         shell: pwsh
         run: |
-          $solutions = @(Get-ChildItem -Path . -Filter *.sln -File)
-          if ($solutions.Count -eq 0) {
-            Write-Host "M0 documentation-only repository: no solution to build yet."
-            exit 0
-          }
-          foreach ($solution in $solutions) {
-            dotnet restore $solution.FullName
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            dotnet build $solution.FullName --configuration Release --no-restore
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            dotnet test $solution.FullName --configuration Release --no-build
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          New-Item -ItemType Directory -Force artifacts/DipTraceSpice | Out-Null
+          Copy-Item artifacts/app/* artifacts/DipTraceSpice/ -Recurse -Force
+          Copy-Item artifacts/plugin/* artifacts/DipTraceSpice/ -Recurse -Force
+          Copy-Item plugin/settings.xml artifacts/DipTraceSpice/settings.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DipTraceSpice-win-x64
+          path: artifacts/DipTraceSpice/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+          if-no-files-found: ignore
+  native-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure C++20
+        run: cmake -S native -B native/build -A x64
+      - name: Build C++20 DLL
+        run: cmake --build native/build --config Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DipTraceSpiceNative-win-x64
+          path: native/build/Release/DipTraceSpiceNative.dll
