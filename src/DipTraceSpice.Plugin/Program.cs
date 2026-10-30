@@ -6,7 +6,7 @@ if (args.Length != 1 || !File.Exists(args[0]))
     Console.Error.WriteLine("Usage: DipTraceSpice.Plugin <DipTrace-exchange.xml>");
     return 2;
 }
-var appPath = Path.Combine(AppContext.BaseDirectory, "DipTraceSpice.App.exe");
+var appPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "DipTraceSpice.App.exe"));
 if (!File.Exists(appPath))
 {
     Console.Error.WriteLine($"App executable not found: {appPath}");
@@ -25,7 +25,7 @@ try
     var process = Process.Start(new ProcessStartInfo(appPath)
     {
         UseShellExecute = false,
-        WorkingDirectory = AppContext.BaseDirectory,
+        WorkingDirectory = Path.GetDirectoryName(appPath)!,
         ArgumentList = { snapshot }
     });
     if (process is null) throw new InvalidOperationException("Viewer process failed to start.");
