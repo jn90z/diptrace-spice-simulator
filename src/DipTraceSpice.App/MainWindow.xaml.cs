@@ -37,14 +37,19 @@ public partial class MainWindow : Window
             Status.Text = "Load a diode SPICE model first.";
             return;
         }
-        var dialog = new OpenFileDialog { Title = "Select ngspice.exe", Filter = "ngspice executable (ngspice.exe)|ngspice.exe|All executables (*.exe)|*.exe" };
-        if (dialog.ShowDialog() != true) return;
+        var executable = NgspiceLocator.Find();
+        if (executable is null)
+        {
+            var dialog = new OpenFileDialog { Title = "Select portable ngspice executable", Filter = "ngspice executables (ngspice*.exe)|ngspice*.exe|All executables (*.exe)|*.exe" };
+            if (dialog.ShowDialog() != true) return;
+            executable = dialog.FileName;
+        }
         var button = (Button)sender;
         button.IsEnabled = false;
         Status.Text = "Running ngspice DC operating-point test (5 V, 36 Ω resistor)...";
         try
         {
-            var result = await NgspiceDcRunner.RunAsync(dialog.FileName, _ledModel);
+            var result = await NgspiceDcRunner.RunAsync(executable, _ledModel);
             Status.Text = $"ngspice DC PASS • {_ledModel.Name} • VLED={result.LedVolts:F4} V • ILED={result.LedCurrentAmps * 1000:F3} mA • 5 V supply, 36 Ω resistor. Bench test only: not a PCB simulation.";
         }
         catch (Exception ex) { Status.Text = $"ngspice DC test failed: {ex.Message}"; }
