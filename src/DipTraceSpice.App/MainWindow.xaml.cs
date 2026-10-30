@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private SchematicCircuit? _schematic;
     private string? _pcbFile;
     private string? _schematicFile;
+    private string? _selectedReference;
     private double _zoom = 1;
     private SpiceDiodeModel? _ledModel;
     public MainWindow()
@@ -22,6 +23,27 @@ public partial class MainWindow : Window
         var args = Environment.GetCommandLineArgs();
         if (args.Length > 1) OpenXml(args[1]);
     }
+    private void SelectComponent(string reference)
+    {
+        _selectedReference = reference;
+        if (_schematic is null)
+        {
+            SelectedComponentInfo.Text = $"{reference} • PCB component selected. Load a schematic to inspect its electrical connections.";
+            return;
+        }
+        var matches = _schematic.Parts.Where(p => p.Reference == reference).ToArray();
+        if (matches.Length != 1)
+        {
+            SelectedComponentInfo.Text = $"{reference} • {(matches.Length == 0 ? "Not found" : "Ambiguous reference")} in loaded schematic. Verify that PCB and schematic belong to the same project.";
+            return;
+        }
+        var part = matches[0];
+        var nets = _schematic.Nets.SelectMany(n => n.Pins.Where(pin => pin.PartId == part.Id)
+            .Select(pin => $"pin {pin.PinId}: {n.Name}")).ToArray();
+        SelectedComponentInfo.Text = $"{reference} • {part.Name} • {(string.IsNullOrWhiteSpace(part.Value) ? "No value" : part.Value)} • " +
+            (nets.Length == 0 ? "No connected nets" : string.Join(" | ", nets)) +
+            (_ledModel is null ? " • No SPICE model loaded" : $" • Loaded diode model: {_ledModel.Name} (not assigned)");
+    }
     private void LoadModel_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Filter = "SPICE models (*.txt;*.lib;*.mod;*.model)|*.txt;*.lib;*.mod;*.model|All files (*.*)|*.*" };
@@ -29,6 +51,7 @@ public partial class MainWindow : Window
         try
         {
             _ledModel = SpiceModelImporter.LoadDiode(dialog.FileName);
+            if (_selectedReference is not null) SelectComponent(_selectedReference);
             Status.Text = $"Loaded diode model {_ledModel.Name} from {System.IO.Path.GetFileName(dialog.FileName)} • IS={_ledModel.Parameters["IS"]:G5} A • N={_ledModel.Parameters["N"]:G5} • RS={_ledModel.Parameters["RS"]:G5} Ω. Model is not yet assigned to D1 or simulated.";
         }
         catch (Exception ex) { Status.Text = $"Unable to import SPICE model: {ex.Message}"; }
@@ -127,6 +150,7 @@ public partial class MainWindow : Window
             {
                 _schematic = SchematicCircuit.Load(path);
                 _schematicFile = path;
+                if (_selectedReference is not null) SelectComponent(_selectedReference);
                 if (_pcb is null) BoardCanvas.Children.Clear();
                 var ledCount = _schematic.Parts.Count(p => p.Name.Equals("LED", StringComparison.OrdinalIgnoreCase));
                 var diagnosticText = _schematic.Diagnostics.Count == 0 ? "No topology warnings." : string.Join(" | ", _schematic.Diagnostics.Take(3));
@@ -202,6 +226,7 @@ public partial class MainWindow : Window
                 element.RenderTransform = new RotateTransform(-pad.Angle * 180 / Math.PI, w / 2, h / 2);
                 Canvas.SetLeft(element, p.X - w / 2);
                 Canvas.SetTop(element, p.Y - h / 2);
+                element.MouseLeftButtonDown += (_, e) => { SelectComponent(pad.Reference); e.Handled = true; };
                 BoardCanvas.Children.Add(element);
                 if (pad.ThroughHole && pad.Drill > 0)
                 {
@@ -245,6 +270,7 @@ public partial class MainWindow : Window
             {
                 var p = Screen(new PcbPoint(c.X, c.Y));
                 var dot = new Ellipse { Width = 7, Height = 7, Fill = Brushes.LightGreen, ToolTip = c.Reference };
+                dot.MouseLeftButtonDown += (_, e) => { SelectComponent(c.Reference); e.Handled = true; };
                 Canvas.SetLeft(dot, p.X - 3.5); Canvas.SetTop(dot, p.Y - 3.5); BoardCanvas.Children.Add(dot);
                 var label = new TextBlock { Text = c.Reference, Foreground = Brushes.LightGreen, FontSize = 11 };
                 Canvas.SetLeft(label, p.X + 5); Canvas.SetTop(label, p.Y - 10); BoardCanvas.Children.Add(label);
