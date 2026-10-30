@@ -15,8 +15,9 @@ A portable, read-only PCB viewer and future electrical-analysis tool for DipTrac
 | DipTrace 5.3.0.3 XML metadata | Verified |
 | Board outline, straight trace segments, component centers | Verified visually on test board |
 | Layer toggles, fit-to-board and wheel zoom | Implemented; testing pending |
-| Copper fill scanline preview and top silkscreen text | Implemented; visual verification pending
-| Pads, vias, exact pour polygons/clearances, curved outlines, pan | Planned |
+| Copper fill scanline preview and top silkscreen text | User-tested; text bounds refinement pending validation
+| Pattern pads and mounting-hole preview | Implemented and user-tested visually
+| Vias, exact pour polygons/clearances, curved outlines, pan | Planned |
 | Native C++20 DLL scaffold | Builds independently; no simulation |
 | ngspice integration | Planned; not bundled or called |
 | Copper current-density solver | Planned |
