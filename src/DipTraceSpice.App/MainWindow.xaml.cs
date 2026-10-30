@@ -12,11 +12,23 @@ public partial class MainWindow : Window
 {
     private PcbGeometry? _pcb;
     private double _zoom = 1;
+    private SpiceDiodeModel? _ledModel;
     public MainWindow()
     {
         InitializeComponent();
         var args = Environment.GetCommandLineArgs();
         if (args.Length > 1) OpenXml(args[1]);
+    }
+    private void LoadModel_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Filter = "SPICE models (*.txt;*.lib;*.mod;*.model)|*.txt;*.lib;*.mod;*.model|All files (*.*)|*.*" };
+        if (dialog.ShowDialog() != true) return;
+        try
+        {
+            _ledModel = SpiceModelImporter.LoadDiode(dialog.FileName);
+            Status.Text = $"Loaded diode model {_ledModel.Name} from {System.IO.Path.GetFileName(dialog.FileName)} • IS={_ledModel.Parameters["IS"]:G5} A • N={_ledModel.Parameters["N"]:G5} • RS={_ledModel.Parameters["RS"]:G5} Ω. Model is not yet assigned to D1 or simulated.";
+        }
+        catch (Exception ex) { Status.Text = $"Unable to import SPICE model: {ex.Message}"; }
     }
     private void OpenButton_Click(object sender, RoutedEventArgs e)
     {
