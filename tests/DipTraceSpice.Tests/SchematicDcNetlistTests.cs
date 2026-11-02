@@ -15,7 +15,9 @@ public class SchematicDcNetlistTests
         var model = new SpiceDiodeModel("TEST_LED", new Dictionary<string, double>(), "test.lib");
         var netlist = SchematicDcNetlist.GenerateSingleLed(circuit, model, "D1", 1, 0, .055);
         Assert.Contains("D1 led 0 TEST_LED", netlist);
-        Assert.Contains("I1 0 led DC 0.055", netlist);
+        Assert.Contains("I1 0 sense DC 0.055", netlist);
+        Assert.Contains("Vsense sense led DC 0", netlist);
+        Assert.Contains("print v(led) i(vsense)", netlist);
         Assert.Contains("print v(led)", netlist);
     }
 
