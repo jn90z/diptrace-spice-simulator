@@ -24,11 +24,12 @@ public static class SchematicDcNetlist
         return $"""
             DipTrace schematic LED DC operating point
             .include diode.lib
-            I1 0 led DC {currentAmps.ToString("G17", CultureInfo.InvariantCulture)}
+            I1 0 sense DC {currentAmps.ToString("G17", CultureInfo.InvariantCulture)}
+            Vsense sense led DC 0
             D1 led 0 {model.Name}
             .control
             op
-            print v(led)
+            print v(led) i(vsense)
             quit
             .endc
             .end
