@@ -19,13 +19,20 @@ public static class NgspiceDcRunner
         var netlist = SchematicDcNetlist.GenerateSingleLed(
             circuit, model, ledReference, anodePin, cathodePin, currentAmps);
         var output = await ExecuteAsync(executablePath, model, netlist, cancellationToken);
-        var match = Regex.Match(output,
+        var voltageMatch = Regex.Match(output,
             @"(?im)^\s*v\(led\)\s*=\s*(?<v>[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*$");
-        if (!match.Success) throw new InvalidDataException("ngspice did not report v(led). Output: " + output);
-        var voltage = double.Parse(match.Groups["v"].Value, CultureInfo.InvariantCulture);
+        if (!voltageMatch.Success)
+        {
+            // Some ngspice builds format a single vector as an indexed table.
+            // Keep a bounded output excerpt so the next failure is diagnosable.
+            var excerpt = output.Length > 4000 ? output[..4000] : output;
+            throw new InvalidDataException("ngspice did not report v(led) in the expected format. Raw output: " +
+                (string.IsNullOrWhiteSpace(excerpt) ? "(empty)" : excerpt));
+        }
+        var voltage = double.Parse(voltageMatch.Groups["v"].Value, CultureInfo.InvariantCulture);
         if (!double.IsFinite(voltage) || voltage < 0)
             throw new InvalidDataException("ngspice reported an invalid LED forward voltage.");
-        return new(voltage, 0, voltage, currentAmps, output);
+        return new(0, 0, voltage, currentAmps, output);
     }
 
     private static async Task<string> ExecuteAsync(
